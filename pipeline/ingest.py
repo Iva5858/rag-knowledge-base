@@ -283,12 +283,14 @@ class IngestHandler:
             entry = KnowledgeEntry(
                 id=str(uuid4()),                                                      # F-13
                 date=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),  # F-14
-                collection="default",                                                 # PRDv2: derive from user input
+                collection="default",                                                 # PRDv3: multi-collection routing
                 input_type=input_type,
                 raw_text=combined_text,
                 user_note=user_note,
                 title=extraction.title,
+                content_type=extraction.content_type,
                 concept=extraction.concept,
+                key_takeaway=extraction.key_takeaway,
                 tags=extraction.tags,
                 code_snippets=extraction.code_snippets,
                 use_cases=extraction.use_cases,
