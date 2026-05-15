@@ -14,7 +14,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 from config import get_config
-from pipeline.ingest import IngestHandler
+from pipeline.ingest import DuplicateError, IngestHandler
 
 logger = logging.getLogger(__name__)
 
@@ -75,13 +75,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
 
         handler: IngestHandler = context.bot_data["ingest_handler"]
+
+        # Check if this is a force re-ingest (user sent the same URL twice)
+        force_urls: set[str] = context.user_data.setdefault("force_urls", set())
+        is_force = text.strip() in force_urls
+
         entry = await handler.process(
             text=text,
             photo_bytes=photo_bytes,
             video_path=video_path,
             user_note=user_note,
+            force=is_force,
         )
+
+        force_urls.discard(text.strip())  # clear after successful force re-ingest
         await message.reply_text(f"Saved: {entry.title} [{', '.join(entry.tags[:3])}]")
+
+    except DuplicateError as exc:
+        # Add URL to force set — next send of the same URL will re-ingest (F-D2, F-D3)
+        force_urls: set[str] = context.user_data.setdefault("force_urls", set())
+        force_urls.add(text.strip())
+        await message.reply_text(
+            f"Already saved: {exc.title}\nSend the same link again to force re-ingest."
+        )
 
     except Exception as exc:
         error_type = type(exc).__name__

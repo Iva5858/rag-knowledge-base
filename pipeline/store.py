@@ -105,6 +105,22 @@ class Store:
 
         logger.info("directory.csv updated (%d rows)", len(existing))
 
+    def find_by_url(self, source_url: str, collection: str = "default") -> str | None:
+        """Return the title of an existing entry matching source_url, or None (F-D4)."""
+        if not source_url:
+            return None
+        try:
+            col = self._get_collection(collection)
+            results = col.get(
+                where={"source_url": source_url},
+                include=["metadatas"],
+            )
+            if results["ids"]:
+                return results["metadatas"][0].get("title") or ""
+        except Exception as exc:
+            logger.warning("find_by_url failed for %s: %s", source_url, exc)
+        return None
+
     def upsert(self, entry: KnowledgeEntry, vector: list[float]) -> None:
         """Write entry and its vector to ChromaDB, and update directory.csv (F-39)."""
         collection = self._get_collection(entry.collection)

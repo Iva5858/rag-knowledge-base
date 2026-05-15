@@ -215,6 +215,15 @@ def _build_combined_text(text: str, visual_content: str, user_note: str | None) 
 # IngestHandler
 # ---------------------------------------------------------------------------
 
+class DuplicateError(Exception):
+    """Raised when the source URL already exists in the knowledge base."""
+
+    def __init__(self, title: str, source_url: str) -> None:
+        super().__init__(f"Already saved: {title}")
+        self.title = title
+        self.source_url = source_url
+
+
 class IngestHandler:
     def __init__(self, config: Config | None = None) -> None:
         self._config = config or get_config()
@@ -231,6 +240,7 @@ class IngestHandler:
         photo_bytes: bytes | None,
         video_path: str | None,
         user_note: str | None,
+        force: bool = False,
     ) -> KnowledgeEntry:
         """Route payload through the full pipeline and return the stored KnowledgeEntry."""
         tmp_dir: str | None = None
@@ -239,6 +249,13 @@ class IngestHandler:
         try:
             # Detect and fetch Instagram URL if the message is a share link
             instagram_url = _extract_instagram_url(text)
+
+            # Duplicate check — skip if force re-ingest requested (F-D1, F-D2, F-D3)
+            if instagram_url and not force:
+                existing_title = self._store.find_by_url(instagram_url)
+                if existing_title is not None:
+                    raise DuplicateError(title=existing_title, source_url=instagram_url)
+
             if instagram_url and not photo_bytes and not video_path:
                 logger.info("Instagram URL detected: %s", instagram_url)
                 tmp_dir = tempfile.mkdtemp(prefix="rag_ig_")
