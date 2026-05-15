@@ -9,12 +9,14 @@ It governs behavior across all PRD versions. Do not modify it without Isaac's ex
 ## Project Overview
 
 A personal RAG knowledge base that ingests Instagram posts and Reels forwarded via Telegram,
-extracts structured knowledge using LLMs, stores vectors in ChromaDB, and writes
-human-readable notes to an Obsidian vault. Semantic search is exposed via a CLI tool.
+extracts structured knowledge using LLMs, stores vectors in ChromaDB, writes
+human-readable notes to an Obsidian vault, and syncs them to GitHub.
+Deployed on Fly.io. Semantic search via CLI and Telegram `/search` command.
 
 **Owner:** Isaac Vélez Aguirre
-**Stack:** Python 3.11+, python-telegram-bot, OpenAI/Anthropic APIs, ChromaDB, Obsidian, ffmpeg
-**Current PRD:** `PRDs/PRDv2.md`
+**Stack:** Python 3.11+, python-telegram-bot, OpenAI APIs, ChromaDB, Obsidian, ffmpeg, yt-dlp, Fly.io
+**Current PRD:** `PRDs/PRDv3.md`
+**Completed PRDs:** PRDv1 ✅, PRDv2 ✅
 
 ---
 
@@ -24,7 +26,9 @@ human-readable notes to an Obsidian vault. Semantic search is exposed via a CLI 
 rag-knowledge-base/
 ├── CLAUDE.md                    ← you are here
 ├── PRDs/
-│   └── PRDv1.md
+│   ├── PRDv1.md
+│   ├── PRDv2.md
+│   └── PRDv3.md
 ├── bot/
 │   └── bot.py
 ├── pipeline/
@@ -35,12 +39,17 @@ rag-knowledge-base/
 │   ├── extractor.py
 │   ├── embedder.py
 │   ├── store.py
-│   └── obsidian_writer.py
+│   ├── obsidian_writer.py
+│   └── vault_sync.py
 ├── models/
 │   └── schema.py
+├── scripts/
+│   └── entrypoint.sh
 ├── search.py
 ├── config.py
 ├── config.yaml
+├── Dockerfile
+├── fly.toml
 ├── .env.example
 ├── requirements.txt
 └── README.md
@@ -56,7 +65,7 @@ Do not rename existing files.
 These apply in every session, regardless of which PRD is active.
 
 **1. Read the active PRD before writing any code.**
-The active PRD is listed under "Current PRD" above. Run `cat` on it at session start.
+The active PRD is listed under "Current PRD" above. Read it in full at session start.
 If the file does not exist, stop and tell Isaac before doing anything.
 
 **2. Schema is a contract.**
@@ -77,10 +86,9 @@ Do not chain milestones automatically.
 
 **5. Ask before assuming.**
 If a requirement is ambiguous, a dependency is missing, or two requirements conflict,
-stop and ask. Do not resolve ambiguity silently and do not make a judgment call
-on anything that affects the schema, the file structure, or the PRDv2 hooks.
+stop and ask. Do not resolve ambiguity silently.
 
-**6. PRDv2 hooks are sacred.**
+**6. Hook comments are sacred.**
 Comments listed in the active PRD's hooks section must be placed with exact text
 at the exact locations specified. These are machine-readable handoff points between
 PRD versions. Do not paraphrase them, do not move them, do not delete them.
@@ -88,6 +96,11 @@ PRD versions. Do not paraphrase them, do not move them, do not delete them.
 **7. No unrequested features.**
 If something seems like an obvious improvement but is not in the active PRD,
 do not build it. Flag it as a suggestion instead. PRDs are the change mechanism.
+
+**8. Update README.md when completing a PRD.**
+When all milestones of a PRD are verified, update `README.md` to reflect the current
+state of the system — architecture, setup instructions, commands, design decisions,
+and the "What's next" section. The README is portfolio-facing and must stay current.
 
 ---
 
@@ -100,53 +113,60 @@ do not build it. Flag it as a suggestion instead. PRDs are the change mechanism.
 - **No bare `except`.** Always catch specific exception types. Log the exception before re-raising.
 - **Docstrings on all public functions.** One line describing what it does, not how.
 - **No print statements in pipeline code.** Use Python `logging` with the module logger.
-  The bot may use `logging` to report status messages to Isaac via Telegram.
 
 ---
 
 ## Environment
 
-- **OS:** macOS (primary), Ubuntu 22.04 (must also work)
-- **Python:** 3.11+. Use a virtual environment. Never modify system Python.
-- **ffmpeg:** Must be on PATH. Check at startup in `config.py` and raise `RuntimeError` with
-  install instructions if missing.
-- **API keys:** Loaded from `.env` via `python-dotenv`. Never log, print, or expose them.
-- **ChromaDB:** Runs embedded (no server). Persistent at `config.storage.chroma_path`.
-- **Obsidian vault:** Local folder. Path from `config.obsidian.vault_path`. Expand `~`.
+- **OS:** macOS (primary dev), Fly.io Ubuntu container (production)
+- **Python:** 3.11+. Use `.venv/` locally. Container uses system Python.
+- **ffmpeg:** Must be on PATH. Checked at startup in `config.py`.
+- **API keys:** Loaded from `.env` via `python-dotenv` locally; Fly.io secrets in production.
+- **ChromaDB:** Embedded, persistent at `config.storage.chroma_path` (local: `./data/chroma`; production: `/data/chroma`).
+- **Obsidian vault:** `config.obsidian.vault_path` locally; `/data/vault` in production (overridden by `VAULT_PATH` env var).
+- **Fly.io secrets:** `TELEGRAM_BOT_TOKEN`, `OPENAI_API_KEY`, `TELEGRAM_ALLOWED_USER_ID`, `GITHUB_PAT`, `VAULT_PATH`, `CHROMA_PATH`, `INSTAGRAM_COOKIES_B64`.
 
 ---
 
 ## Adding a New PRD Version
 
-When Isaac provides a new PRD (e.g. `PRDs/PRDv2.md`):
+When Isaac provides a new PRD (e.g. `PRDs/PRDv3.md`):
 
 1. Update "Current PRD" at the top of this file to point to the new PRD.
-2. Read the new PRD in full before writing any code.
-3. Identify all PRDv2 hooks from the previous PRD that this version activates —
+2. Update "Completed PRDs" to include the previous one.
+3. Read the new PRD in full before writing any code.
+4. Identify all hook comments from the previous PRD that this version activates —
    replace the hook comments with real implementation.
-4. Do not remove hook comments for PRD versions that are not yet active.
-5. Extend `models/schema.py` only if the new PRD explicitly requires new fields.
+5. Do not remove hook comments for PRD versions that are not yet active.
+6. Extend `models/schema.py` only if the new PRD explicitly requires new fields.
    All additions must be backward-compatible (new fields must have defaults).
+7. Update `README.md` when all milestones are complete.
 
 ---
 
 ## Known Decisions & Rationale
 
-Record decisions here as they are made, so future sessions have context.
-
 | Decision | Rationale | PRD |
 |----------|-----------|-----|
-| Embed `entry.embed_text` (title + concept + tags), not raw post text | Raw Instagram text is noisy; cleaned extraction gives better retrieval quality | v1 |
-| ChromaDB collections parameterized from day one | Multi-topic support requires zero architectural change in PRDv2 | v1 |
-| Video → Whisper, not vision LLM | Vision models process frames; Whisper processes speech across time. Reels are primarily audio-driven | v1 |
-| Single `default` collection in MVP | Simplicity; routing logic added in PRDv2 without schema changes | v1 |
-| `ExtractionOutput` separate from `KnowledgeEntry` | LLM output is untrusted; validate separately before merging into the main entry | v1 |
+| Embed `entry.embed_text` (title + concept + key_takeaway + tags) | Cleaned extraction is semantically denser than raw noisy Instagram text | v1, v2 |
+| ChromaDB collections parameterized from day one | Multi-topic support requires no architectural change — only activating PRDv3 hooks | v1 |
+| Video → Whisper, not vision LLM | Reels are audio-driven; Whisper captures speech across the full timeline | v1 |
+| `ExtractionOutput` separate from `KnowledgeEntry` | LLM output is untrusted; validate before merging into the main entry | v1 |
+| Image posts use `/media/?size=l`, not yt-dlp | yt-dlp requires Instagram session for image posts; this endpoint is public | v1 (corrected) |
+| Caption from `og:description` with FB crawler UA | Instagram serves full caption to Facebook crawlers without login | v1 (corrected) |
+| `content_type` + `key_takeaway` fields | Original prompt missed strategic/professional context of non-tutorial posts | v2 |
+| `GITHUB_PAT` + `git_remote_repo` split | PAT never appears in any committed file; repo URL is safe to commit | v2 |
+| Git identity configured in VaultSync | Containers have no git identity by default; silent commit failure returns exit 0 | v2 |
+| Instagram cookies as Fly.io secret (base64) | Datacenter IPs get rate-limited by Instagram for Reels without auth | v2 |
+| `fly apps create` instead of `flyctl launch` | `flyctl launch` chokes on `[[mounts]]` section; direct app creation is reliable | v2 |
 
 ---
 
 ## Suggestions Backlog
 
-Features flagged during implementation but deferred. Bring these to Isaac's attention
-when planning future PRDs — do not implement without a PRD.
+Features flagged during implementation but deferred. Bring to Isaac's attention when planning future PRDs.
 
-<!-- Add entries here as: - [Session date] Description of suggestion -->
+- [2026-05-15] Obsidian deep links in `/search` results (`obsidian://open?vault=...`) — only work on local machine, not mobile. Suggested for PRDv3.
+- [2026-05-15] Anki flashcard export from knowledge entries — useful for active recall of saved content.
+- [2026-05-15] Batch ingestion — send multiple URLs in one message.
+- [2026-05-15] Filtering by `content_type` or `difficulty` in `/search` — e.g. `/search pandas --type technical-tutorial`.
