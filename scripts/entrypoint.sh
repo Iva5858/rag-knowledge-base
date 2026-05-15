@@ -1,25 +1,35 @@
 #!/bin/bash
-# Container entrypoint: clone vault on first boot, then run the bot.
+# Container entrypoint: configure paths, clone vault on first boot, start bot.
 set -e
 
-VAULT_DIR="${VAULT_PATH:-/data/vault}"
+# Ensure data paths are set — explicit export so child processes inherit them
+export CHROMA_PATH="${CHROMA_PATH:-/data/chroma}"
+export VAULT_PATH="${VAULT_PATH:-/data/vault}"
 
-# --- Vault setup (first boot only) ---
-if [ ! -d "$VAULT_DIR/.git" ]; then
-    if [ -n "$GIT_REMOTE" ]; then
-        echo "[entrypoint] First boot — cloning vault from remote..."
-        git clone "$GIT_REMOTE" "$VAULT_DIR"
-        echo "[entrypoint] Vault cloned to $VAULT_DIR"
-    else
-        echo "[entrypoint] GIT_REMOTE not set — creating empty vault directory"
-        mkdir -p "$VAULT_DIR"
-    fi
-else
-    echo "[entrypoint] Vault already present at $VAULT_DIR"
+# Build GIT_REMOTE from GITHUB_PAT + GIT_REMOTE_REPO if not already set as a full URL.
+# GITHUB_PAT is a Fly.io secret; GIT_REMOTE_REPO is a non-secret env var in fly.toml.
+if [ -z "$GIT_REMOTE" ] && [ -n "$GITHUB_PAT" ] && [ -n "$GIT_REMOTE_REPO" ]; then
+    export GIT_REMOTE="https://${GITHUB_PAT}@${GIT_REMOTE_REPO}"
+    echo "[entrypoint] Built GIT_REMOTE from GITHUB_PAT + GIT_REMOTE_REPO"
 fi
 
-# --- Ensure ChromaDB directory exists ---
-mkdir -p "${CHROMA_PATH:-/data/chroma}"
+# --- Vault setup (first boot only) ---
+if [ ! -d "$VAULT_PATH/.git" ]; then
+    if [ -n "$GIT_REMOTE" ]; then
+        echo "[entrypoint] First boot — cloning vault into $VAULT_PATH..."
+        git clone "$GIT_REMOTE" "$VAULT_PATH"
+        echo "[entrypoint] Vault ready"
+    else
+        echo "[entrypoint] GIT_REMOTE not set — creating empty vault directory"
+        mkdir -p "$VAULT_PATH"
+    fi
+else
+    echo "[entrypoint] Vault already present at $VAULT_PATH"
+fi
 
+# Ensure ChromaDB directory exists on the persistent volume
+mkdir -p "$CHROMA_PATH"
+
+echo "[entrypoint] VAULT_PATH=$VAULT_PATH  CHROMA_PATH=$CHROMA_PATH"
 echo "[entrypoint] Starting bot..."
 exec python bot/bot.py
