@@ -9,7 +9,8 @@ primary_region = "fra"
 [env]
   CHROMA_PATH    = "/data/chroma"
   VAULT_PATH     = "/data/vault"
-  GIT_REMOTE_REPO = "github.com/Iva5858/vault.git"
+  GIT_REMOTE_REPO = "github.com/Iva5858/obsidian-vault.git"
+
 
 # Persistent volume: ChromaDB vectors + Obsidian vault live here
 [[mounts]]
