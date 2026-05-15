@@ -28,17 +28,80 @@ async def _download_video(context: ContextTypes.DEFAULT_TYPE, file_id: str, tmp_
     return str(local_path)
 
 
+def _is_authorized(update: Update) -> bool:
+    """Return True if the sender matches TELEGRAM_ALLOWED_USER_ID."""
+    allowed_id = int(os.getenv("TELEGRAM_ALLOWED_USER_ID", "0"))
+    return update.effective_user.id == allowed_id
+
+
+def _format_search_results(results: list, query: str) -> str:
+    """Format SearchResult list as a numbered Telegram message."""
+    if not results:
+        return f'No results found for: "{query}"'
+    lines: list[str] = []
+    for i, r in enumerate(results, 1):
+        concept_preview = r.concept[:100] + "..." if len(r.concept) > 100 else r.concept
+        difficulty = f" [{r.difficulty}]" if r.difficulty else ""
+        tags_str = ", ".join(r.tags[:5])  # cap tags to keep message compact
+        note = r.obsidian_path or "—"
+        lines += [
+            f"{i}. {r.title}{difficulty}",
+            f"   {concept_preview}",
+            f"   Tags: {tags_str}",
+            f"   Note: {note}",
+            "",
+        ]
+    return "\n".join(lines).rstrip()
+
+
 async def handle_search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Stub handler for /search."""
-    # PRDv2: multi-collection routing
-    await update.message.reply_text("Coming in v2")
+    """Handle /search <query> [--k <n>] command."""
+    if not _is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+
+    args: list[str] = context.args or []
+
+    if not args:
+        await update.message.reply_text(
+            "Usage: /search <query> [--k <n>]\n"
+            "Example: /search pandas groupby\n"
+            "Example: /search attention mechanism --k 3"
+        )
+        return
+
+    # Parse optional --k flag
+    k = 5
+    query_parts: list[str] = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--k" and i + 1 < len(args):
+            try:
+                k = max(1, int(args[i + 1]))
+            except ValueError:
+                pass
+            i += 2
+        else:
+            query_parts.append(args[i])
+            i += 1
+
+    query = " ".join(query_parts).strip()
+    if not query:
+        await update.message.reply_text("Please provide a search query after /search.")
+        return
+
+    try:
+        handler: IngestHandler = context.bot_data["ingest_handler"]
+        results = await handler.search(query, k=k)
+        await update.message.reply_text(_format_search_results(results, query))
+    except Exception as exc:
+        logger.exception("Search error: %s", exc)
+        await update.message.reply_text(f"Search failed: {type(exc).__name__}.")
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle all incoming messages: text, photo, video, or combinations."""
-    ALLOWED_USER_ID = int(os.getenv("TELEGRAM_ALLOWED_USER_ID"))
-
-    if update.effective_user.id != ALLOWED_USER_ID:
+    if not _is_authorized(update):
         await update.message.reply_text("Unauthorized.")
         return
 

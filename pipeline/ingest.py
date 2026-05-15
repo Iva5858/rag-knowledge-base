@@ -329,3 +329,10 @@ class IngestHandler:
         finally:
             if tmp_dir:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    async def search(
+        self, query: str, k: int = 5, collection: str = "default"
+    ) -> list:
+        """Embed query and return top-k SearchResult objects."""
+        vector = await self._embedder.embed_query(query)
+        return self._store.search(vector, k=k, collection=collection)
