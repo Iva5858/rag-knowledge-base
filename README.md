@@ -118,7 +118,40 @@ embedding:
   openai_model: text-embedding-3-small
 ```
 
-### 5. Run the Telegram bot
+### 5. (Optional) Set up Obsidian vault Git sync
+
+This keeps a copy of every note on your local machine via the [Obsidian Git](https://github.com/denolehov/obsidian-git) plugin, even when the bot runs on a remote server.
+
+**On your Mac — one-time setup:**
+```bash
+# 1. Make the vault a git repo (if it isn't already)
+cd "~/Documents/ObsidianVault/Knowledge Base"
+git init
+git remote add origin https://github.com/<you>/obsidian-vault-private.git
+git add . && git commit -m "Initial vault commit"
+git push -u origin main
+```
+
+**Generate a GitHub Personal Access Token (PAT):**
+- Go to GitHub → Settings → Developer settings → Personal access tokens → Fine-grained
+- Grant **Contents: read & write** on the vault repo
+- Copy the token
+
+**In `config.yaml`:**
+```yaml
+obsidian:
+  vault_path: ~/Documents/ObsidianVault/Knowledge Base
+  git_remote: "https://<YOUR_PAT>@github.com/<you>/obsidian-vault-private.git"
+  vault_sync_enabled: true
+```
+
+**On your Mac — install the Obsidian Git plugin:**
+- Obsidian → Settings → Community plugins → Browse → search "Obsidian Git"
+- Enable it and set **Auto pull interval** to 5 minutes
+
+After this, every post you ingest will appear in your local Obsidian within minutes, regardless of where the bot is running.
+
+### 6. Run the Telegram bot
 
 ```bash
 python bot/bot.py

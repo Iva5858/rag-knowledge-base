@@ -22,3 +22,5 @@ storage:
 
 obsidian:
   vault_path: ~/Documents/ObsidianVault/Knowledge Base
+  git_remote: ""                               # e.g. https://<PAT>@github.com/username/vault.git
+  vault_sync_enabled: false                    # set to true once vault git repo is configured

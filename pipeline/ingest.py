@@ -21,6 +21,7 @@ from pipeline.extractor import Extractor
 from pipeline.obsidian_writer import ObsidianWriter
 from pipeline.store import Store
 from pipeline.transcriber import VideoTranscriber
+from pipeline.vault_sync import VaultSync
 from pipeline.vision import VisionDescriber
 
 logger = logging.getLogger(__name__)
@@ -233,6 +234,7 @@ class IngestHandler:
         self._embedder = Embedder(self._config)
         self._store = Store(self._config)
         self._writer = ObsidianWriter(self._config)
+        self._vault_sync = VaultSync(self._config)
 
     async def process(
         self,
@@ -315,10 +317,11 @@ class IngestHandler:
                 source_url=extraction.source_url,
             )
 
-            # Embed → store → write (F-34 → F-39 → F-44)
+            # Embed → store → write → sync (F-34 → F-39 → F-44 → F-V1)
             vector = await self._embedder.embed(entry)
             self._store.upsert(entry, vector)
             self._writer.write(entry)
+            await asyncio.to_thread(self._vault_sync.commit_and_push, entry)
 
             logger.info(
                 "Entry saved: id=%s title=%r obsidian=%s",

@@ -64,6 +64,8 @@ class StorageConfig:
 @dataclass
 class ObsidianConfig:
     vault_path: str
+    git_remote: str = ""          # HTTPS remote URL for vault sync; empty = sync disabled
+    vault_sync_enabled: bool = True
 
     @property
     def resolved_vault_path(self) -> Path:
