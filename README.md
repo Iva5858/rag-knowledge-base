@@ -163,7 +163,41 @@ Forward any Instagram post or Reel URL to the bot. You will receive a confirmati
 Saved: Vectorized Operations in Pandas [pandas, performance, vectorization]
 ```
 
-### 6. Search the knowledge base
+### 6. Deploy to Fly.io (always-on hosting)
+
+**Prerequisites:** [Install flyctl](https://fly.io/docs/hands-on/install-flyctl/) and run `flyctl auth login`.
+
+```bash
+# 1. Edit fly.toml — replace "rag-knowledge-base" with your app name
+
+# 2. Create the app (reads fly.toml — do not deploy yet)
+flyctl launch --no-deploy
+
+# 3. Create the persistent volume (1 GB is plenty for ChromaDB + vault)
+flyctl volumes create rag_data --size 1 --region iad
+
+# 4. Set all secrets (these are never stored in the image or fly.toml)
+flyctl secrets set \
+  TELEGRAM_BOT_TOKEN="your_token" \
+  OPENAI_API_KEY="your_openai_key" \
+  TELEGRAM_ALLOWED_USER_ID="your_telegram_id" \
+  GIT_REMOTE="https://<YOUR_PAT>@github.com/<you>/obsidian-vault-private.git"
+
+# 5. Deploy
+flyctl deploy
+```
+
+On first boot, `scripts/entrypoint.sh` clones your Obsidian vault from `GIT_REMOTE` into `/data/vault`. The ChromaDB database lives at `/data/chroma`. Both persist across deployments via the `rag_data` volume.
+
+**Cost note:** Fly.io's free tier allows 3 always-on shared VMs. This bot uses 1 (512 MB RAM). It will not spin down between messages — that is intentional for a Telegram bot.
+
+**Logs:**
+```bash
+flyctl logs          # stream live logs
+flyctl ssh console   # shell into the running container
+```
+
+### 7. Search the knowledge base
 
 ```bash
 # Default: top 5 results

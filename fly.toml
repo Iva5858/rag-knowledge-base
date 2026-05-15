@@ -1,0 +1,25 @@
+# Fly.io configuration — replace "rag-knowledge-base" with your app name
+app = "rag-knowledge-base"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Non-secret environment variables — secrets are set via `flyctl secrets set`
+[env]
+  CHROMA_PATH = "/data/chroma"
+  VAULT_PATH  = "/data/vault"
+
+# Persistent volume: ChromaDB vectors + Obsidian vault live here
+[[mounts]]
+  source      = "rag_data"
+  destination = "/data"
+
+# Background worker — no HTTP service needed
+[processes]
+  app = "scripts/entrypoint.sh"
+
+[[vm]]
+  cpu_kind  = "shared"
+  cpus      = 1
+  memory_mb = 512

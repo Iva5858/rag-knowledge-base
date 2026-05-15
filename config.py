@@ -88,6 +88,15 @@ class Config:
         self.storage = StorageConfig(**raw["storage"])
         self.obsidian = ObsidianConfig(**raw["obsidian"])
 
+        # Container env-var overrides — take precedence over config.yaml values.
+        # Set by fly.toml [env] or `flyctl secrets set`; never needed locally.
+        if chroma_override := os.environ.get("CHROMA_PATH"):
+            self.storage.chroma_path = chroma_override
+        if vault_override := os.environ.get("VAULT_PATH"):
+            self.obsidian.vault_path = vault_override
+        if git_remote_override := os.environ.get("GIT_REMOTE"):
+            self.obsidian.git_remote = git_remote_override
+
 
 def _check_ffmpeg() -> None:
     """Raise RuntimeError with install instructions if ffmpeg is not on PATH."""
