@@ -49,8 +49,10 @@ def _format_search_results(results: list, query: str) -> str:
             f"   {concept_preview}",
             f"   Tags: {tags_str}",
             f"   Note: {note}",
-            "",
         ]
+        if r.source_url:
+            lines.append(f"   {r.source_url}")
+        lines.append("")
     return "\n".join(lines).rstrip()
 
 

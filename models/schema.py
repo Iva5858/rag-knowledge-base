@@ -57,6 +57,7 @@ class SearchResult(BaseModel):
     tags: list[str]
     difficulty: str | None
     obsidian_path: str | None
+    source_url: str | None = None  # Added PRDv2 — original post URL for actionable results
     distance: float
 
 

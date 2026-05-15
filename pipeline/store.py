@@ -164,6 +164,7 @@ class Store:
                 tags=_deserialize_tags(meta["tags"]),
                 difficulty=meta["difficulty"] or None,
                 obsidian_path=meta["obsidian_path"] or None,
+                source_url=meta.get("source_url") or None,
                 distance=distance,
             ))
 
