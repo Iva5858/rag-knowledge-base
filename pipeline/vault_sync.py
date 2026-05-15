@@ -44,6 +44,13 @@ class VaultSync:
             )
             self._enabled = False
 
+    def _ensure_git_identity(self) -> None:
+        """Configure git user identity on the vault repo if not already set."""
+        email = self._git("config", "user.email", check=False).strip()
+        if not email:
+            self._git("config", "user.email", "rag-bot@fly.dev", check=False)
+            self._git("config", "user.name", "RAG Bot", check=False)
+
     def commit_and_push(self, entry: KnowledgeEntry) -> None:
         """Stage all vault changes, commit, and push (F-V1 through F-V4).
 
@@ -56,12 +63,20 @@ class VaultSync:
         commit_msg = f"Add: {entry.title} [{entry.date[:10]}]"  # F-V2
 
         try:
+            self._ensure_git_identity()
             self._git("add", "-A")
 
-            stdout = self._git("commit", "-m", commit_msg, check=False)
-            if "nothing to commit" in stdout:
+            # Use check=False so we can inspect the output for "nothing to commit"
+            result = subprocess.run(
+                ["git", "-C", str(self._vault), "commit", "-m", commit_msg],
+                capture_output=True, text=True, timeout=30,
+            )
+            combined = result.stdout + result.stderr
+            if "nothing to commit" in combined:
                 logger.debug("VaultSync: nothing to commit")
                 return
+            if result.returncode != 0:
+                raise RuntimeError(f"git commit failed:\n{combined.strip()}")
 
             self._git("push")
             logger.info("VaultSync: pushed — %s", commit_msg)
