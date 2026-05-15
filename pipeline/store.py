@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 # Ordered columns written to directory.csv.
 # Lists are semicolon-joined so commas inside values don't break CSV parsing.
 _CSV_COLUMNS = [
-    "id", "date", "collection", "input_type", "title", "concept",
+    "id", "date", "collection", "input_type", "content_type",
+    "title", "concept", "key_takeaway",
     "tags", "use_cases", "difficulty", "source_url", "user_note", "obsidian_path",
 ]
 
@@ -27,8 +28,10 @@ def _entry_to_csv_row(entry: KnowledgeEntry) -> dict:
         "date": entry.date,
         "collection": entry.collection,
         "input_type": entry.input_type,
+        "content_type": entry.content_type or "",
         "title": entry.title,
         "concept": entry.concept,
+        "key_takeaway": entry.key_takeaway,
         "tags": ";".join(entry.tags),
         "use_cases": ";".join(entry.use_cases),
         "difficulty": entry.difficulty or "",
@@ -49,10 +52,12 @@ def _serialize_metadata(entry: KnowledgeEntry) -> dict:
         "date": entry.date,
         "collection": entry.collection,
         "input_type": entry.input_type,
+        "content_type": entry.content_type or "",
         "raw_text": entry.raw_text,
         "user_note": entry.user_note or "",
         "title": entry.title,
         "concept": entry.concept,
+        "key_takeaway": entry.key_takeaway,
         "tags": ",".join(entry.tags),
         "use_cases": ",".join(entry.use_cases),
         "difficulty": entry.difficulty or "",

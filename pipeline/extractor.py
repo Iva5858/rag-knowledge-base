@@ -12,29 +12,36 @@ from models.schema import ExtractionOutput
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = (
-    "You are extracting structured knowledge from an Instagram post for a personal RAG knowledge base.\n"
-    "The post may contain a description of an image, a video transcript, or raw text.\n"
-    "\n"
-    "Return ONLY a valid JSON object. No markdown, no explanation, no code fences.\n"
-    "The JSON must match this exact structure:\n"
-    "{\n"
-    '  "title": "string, max 10 words, descriptive",\n'
-    '  "concept": "string, 1-2 sentences explaining the core idea",\n'
-    '  "tags": ["lowercase", "strings", "tools", "techniques", "libraries"],\n'
-    '  "code_snippets": [{"language": "python", "code": "the code here"}],\n'
-    '  "use_cases": ["practical application 1", "practical application 2"],\n'
-    '  "difficulty": "beginner | intermediate | advanced",\n'
-    '  "source_url": "string or null"\n'
-    "}\n"
-    "\n"
-    "Rules:\n"
-    "- tags must include all tools, libraries, and techniques mentioned\n"
-    "- tags must be lowercase; use hyphens for multi-word terms (e.g. \"machine-learning\", \"neural-network\", not \"machine learning\" or \"machinelearning\")\n"
-    "- code_snippets is an empty list if no code is present\n"
-    "- difficulty must always be set; infer from context if not explicit\n"
-    "- source_url is null unless a URL is present in the input text"
-)
+_SYSTEM_PROMPT = """\
+You are extracting structured knowledge from an Instagram post for a personal RAG knowledge base.
+The post may contain a description of an image, a video transcript, or raw text.
+Content can be technical tutorials, project showcases, career advice, tool introductions, or industry insights.
+Capture BOTH the technical detail AND the strategic or professional significance of the post.
+
+Return ONLY a valid JSON object. No markdown, no explanation, no code fences.
+The JSON must match this exact structure:
+{
+  "title": "string, max 10 words, descriptive",
+  "content_type": "technical-tutorial | project-showcase | tool-overview | career-advice | industry-insight | general",
+  "concept": "string, 2-3 sentences: explain the core idea AND why it matters professionally or strategically",
+  "key_takeaway": "string, one sentence: the single most useful thing a practitioner should remember",
+  "tags": ["lowercase-hyphenated", "tools", "techniques", "libraries", "themes"],
+  "code_snippets": [{"language": "python", "code": "the code here"}],
+  "use_cases": ["practical application 1", "practical application 2"],
+  "difficulty": "beginner | intermediate | advanced",
+  "source_url": "string or null"
+}
+
+Rules:
+- content_type must always be set; choose the best fit from the list above
+- concept must not be limited to technical details — include the bigger picture if present
+- key_takeaway is one sentence, practical, and memorable
+- tags must include all tools, libraries, techniques, and themes mentioned
+- tags must be lowercase; use hyphens for multi-word terms (e.g. "machine-learning", not "machine learning")
+- code_snippets is an empty list if no code is present
+- difficulty must always be set; infer from context if not explicit
+- source_url is null unless a URL is present in the input text\
+"""
 
 
 def _normalize_tag(tag: str) -> str:
