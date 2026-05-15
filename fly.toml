@@ -1,6 +1,6 @@
 # Fly.io configuration — replace "rag-knowledge-base" with your app name
-app = "rag-knowledge-base"
-primary_region = "iad"
+app = "iva5858-rag-knowledge-base"
+primary_region = "fra"
 
 [build]
   dockerfile = "Dockerfile"
@@ -14,10 +14,6 @@ primary_region = "iad"
 [[mounts]]
   source      = "rag_data"
   destination = "/data"
-
-# Background worker — no HTTP service needed
-[processes]
-  app = "scripts/entrypoint.sh"
 
 [[vm]]
   cpu_kind  = "shared"
