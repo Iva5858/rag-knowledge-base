@@ -17,8 +17,12 @@ fi
 if [ ! -d "$VAULT_PATH/.git" ]; then
     if [ -n "$GIT_REMOTE" ]; then
         echo "[entrypoint] First boot — cloning vault into $VAULT_PATH..."
-        git clone "$GIT_REMOTE" "$VAULT_PATH"
-        echo "[entrypoint] Vault ready"
+        if git clone "$GIT_REMOTE" "$VAULT_PATH"; then
+            echo "[entrypoint] Vault cloned successfully"
+        else
+            echo "[entrypoint] WARNING: git clone failed — bot will start without vault sync"
+            mkdir -p "$VAULT_PATH"
+        fi
     else
         echo "[entrypoint] GIT_REMOTE not set — creating empty vault directory"
         mkdir -p "$VAULT_PATH"
