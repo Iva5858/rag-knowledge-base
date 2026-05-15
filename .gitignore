@@ -1,0 +1,31 @@
+# Secrets
+.env
+
+# Virtual environment
+.venv/
+
+# ChromaDB binary data (too large, not portable)
+data/chroma/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Temporary media files
+*.wav
+*.mp4
+*.mov
+*.webm
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Test artifacts
+test.py

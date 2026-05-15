@@ -1,0 +1,24 @@
+telegram:
+  bot_token_env: TELEGRAM_BOT_TOKEN          # env var name, not the value
+  allowed_user_id_env: TELEGRAM_ALLOWED_USER_ID
+
+llm:
+  extraction_model: gpt-4o-mini
+  vision_model: gpt-4o-mini
+
+whisper:
+  use_local: false                             # true = openai-whisper package; false = API
+  local_model_size: base                       # tiny | base | small (if use_local: true)
+  max_video_duration_seconds: 300
+
+embedding:
+  provider: openai                             # openai | sentence-transformers
+  openai_model: text-embedding-3-small
+  local_model: all-MiniLM-L6-v2
+
+storage:
+  chroma_path: ./data/chroma
+  default_collection: default                  # PRDv2: this becomes a routing default
+
+obsidian:
+  vault_path: ~/Documents/ObsidianVault/Knowledge Base
