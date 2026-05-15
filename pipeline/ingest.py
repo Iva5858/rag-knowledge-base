@@ -142,10 +142,12 @@ async def _fetch_reel(url: str, tmp_dir: str) -> tuple[str, str]:
     """Download an Instagram Reel via yt-dlp. Returns (caption, video_path)."""
     import yt_dlp  # only imported for video/reel posts
 
+    cookies_file = "/data/instagram_cookies.txt"
     ydl_opts = {
         "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
+        **({"cookiefile": cookies_file} if os.path.exists(cookies_file) else {}),
     }
 
     def _download() -> dict:

@@ -34,6 +34,12 @@ fi
 # Ensure ChromaDB directory exists on the persistent volume
 mkdir -p "$CHROMA_PATH"
 
+# Write Instagram cookies from env var if provided (base64-encoded Netscape cookies.txt)
+if [ -n "$INSTAGRAM_COOKIES_B64" ]; then
+    echo "$INSTAGRAM_COOKIES_B64" | base64 -d > /data/instagram_cookies.txt
+    echo "[entrypoint] Instagram cookies written to /data/instagram_cookies.txt"
+fi
+
 echo "[entrypoint] VAULT_PATH=$VAULT_PATH  CHROMA_PATH=$CHROMA_PATH"
 echo "[entrypoint] Starting bot..."
 exec python bot/bot.py
