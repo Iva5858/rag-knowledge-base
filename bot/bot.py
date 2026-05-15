@@ -1,10 +1,12 @@
 """Telegram bot: async, python-telegram-bot v21."""
 
+import csv
 import logging
 import os
 import shutil
 import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 # Ensure project root is on sys.path when running as `python bot/bot.py`
@@ -55,6 +57,65 @@ def _format_search_results(results: list, query: str) -> str:
         lines.append("")
     return "\n".join(lines).rstrip()
 
+
+# ---------------------------------------------------------------------------
+# CSV helpers for /recent and /stats
+# ---------------------------------------------------------------------------
+
+def _read_csv(config) -> list[dict]:
+    """Read all rows from directory.csv. Returns [] if the file doesn't exist yet."""
+    csv_path = Path(config.storage.chroma_path).expanduser().parent / "directory.csv"
+    if not csv_path.exists():
+        return []
+    with csv_path.open(newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def _format_recent(rows: list[dict], n: int) -> str:
+    """Format the n most recent entries as a Telegram message."""
+    if not rows:
+        return "No entries in the knowledge base yet."
+    sorted_rows = sorted(rows, key=lambda r: r.get("date", ""), reverse=True)
+    recent = sorted_rows[:n]
+    lines: list[str] = [f"Last {len(recent)} entries:\n"]
+    for i, row in enumerate(recent, 1):
+        date = row.get("date", "")[:10]
+        title = row.get("title") or "Untitled"
+        difficulty = row.get("difficulty") or "—"
+        ct = row.get("content_type") or "—"
+        lines.append(f"{i}. {title}")
+        lines.append(f"   {date} · {difficulty} · {ct}")
+        if row.get("source_url"):
+            lines.append(f"   {row['source_url']}")
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def _format_stats(rows: list[dict]) -> str:
+    """Format knowledge base statistics as a Telegram message."""
+    total = len(rows)
+    if total == 0:
+        return "No entries in the knowledge base yet."
+
+    def _breakdown(field: str) -> str:
+        counts = Counter(r.get(field) or "unknown" for r in rows)
+        width = max(len(k) for k in counts)
+        return "\n".join(
+            f"  {k.ljust(width)}  {v}" for k, v in sorted(counts.items(), key=lambda x: -x[1])
+        )
+
+    return (
+        f"Knowledge Base Stats\n"
+        f"Total entries: {total}\n"
+        f"\nBy content type:\n{_breakdown('content_type')}\n"
+        f"\nBy difficulty:\n{_breakdown('difficulty')}\n"
+        f"\nBy input type:\n{_breakdown('input_type')}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Command handlers
+# ---------------------------------------------------------------------------
 
 async def handle_search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /search <query> [--k <n>] command."""
@@ -175,6 +236,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
+async def handle_recent_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /recent [n] — show the last n ingested entries (default 5, max 20)."""
+    if not _is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+
+    n = 5
+    if context.args:
+        try:
+            n = min(max(1, int(context.args[0])), 20)
+        except ValueError:
+            pass
+
+    config = get_config()
+    rows = _read_csv(config)
+    await update.message.reply_text(_format_recent(rows, n))
+
+
+async def handle_stats_command(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /stats — show knowledge base statistics."""
+    if not _is_authorized(update):
+        await update.message.reply_text("Unauthorized.")
+        return
+
+    config = get_config()
+    rows = _read_csv(config)
+    await update.message.reply_text(_format_stats(rows))
+
+
 async def _post_init(app: Application) -> None:
     """Initialise shared pipeline objects once at startup."""
     config = get_config()
@@ -194,6 +284,8 @@ def main() -> None:
         .build()
     )
     app.add_handler(CommandHandler("search", handle_search_command))
+    app.add_handler(CommandHandler("recent", handle_recent_command))
+    app.add_handler(CommandHandler("stats", handle_stats_command))
     app.add_handler(MessageHandler(filters.ALL, handle_message))
 
     logger.info("Bot starting — polling for updates")
