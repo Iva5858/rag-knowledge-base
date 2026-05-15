@@ -22,5 +22,6 @@ storage:
 
 obsidian:
   vault_path: ~/Documents/ObsidianVault/Knowledge Base
-  git_remote: ""                               # leave empty — set GIT_REMOTE in .env instead
-  vault_sync_enabled: true                    # set to true once vault git repo is configured
+  git_remote_repo: "github.com/Iva5858/vault.git"   # repo URL without token — safe to commit
+  git_remote: ""                                     # constructed at runtime from GITHUB_PAT + git_remote_repo
+  vault_sync_enabled: true

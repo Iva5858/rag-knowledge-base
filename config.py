@@ -64,7 +64,8 @@ class StorageConfig:
 @dataclass
 class ObsidianConfig:
     vault_path: str
-    git_remote: str = ""          # HTTPS remote URL for vault sync; empty = sync disabled
+    git_remote_repo: str = ""     # repo path only, e.g. "github.com/user/vault.git" — safe to commit
+    git_remote: str = ""          # full authenticated URL — constructed at runtime, never committed
     vault_sync_enabled: bool = True
 
     @property
@@ -94,8 +95,22 @@ class Config:
             self.storage.chroma_path = chroma_override
         if vault_override := os.environ.get("VAULT_PATH"):
             self.obsidian.vault_path = vault_override
-        if git_remote_override := os.environ.get("GIT_REMOTE"):
-            self.obsidian.git_remote = git_remote_override
+
+        # Build the authenticated git remote URL from separate env vars so the
+        # PAT never has to appear in a config file or a URL string in .env.
+        #
+        # Pattern A — two vars (recommended for local dev):
+        #   export GITHUB_PAT=github_pat_...
+        #   git_remote_repo set in config.yaml
+        #
+        # Pattern B — one var (used by Fly.io secrets):
+        #   export GIT_REMOTE=https://<PAT>@github.com/user/vault.git
+        github_pat = os.environ.get("GITHUB_PAT", "")
+        repo = self.obsidian.git_remote_repo or os.environ.get("GIT_REMOTE_REPO", "")
+        if github_pat and repo:
+            self.obsidian.git_remote = f"https://{github_pat}@{repo}"
+        elif full_remote := os.environ.get("GIT_REMOTE"):
+            self.obsidian.git_remote = full_remote
 
 
 def _check_ffmpeg() -> None:
