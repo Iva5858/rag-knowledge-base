@@ -5,9 +5,16 @@ import io
 import logging
 from pathlib import Path
 
+import logging
+
 import chromadb
+from chromadb.config import Settings
 
 from config import Config, get_config
+
+# chromadb 0.5.3 has a posthog API mismatch that produces noisy ERROR logs.
+# Telemetry is already non-functional; suppress the logger rather than let it spam stdout.
+logging.getLogger("chromadb.telemetry.product.posthog").setLevel(logging.CRITICAL)
 from models.schema import KnowledgeEntry, SearchResult
 
 logger = logging.getLogger(__name__)
@@ -75,7 +82,10 @@ class Store:
     def __init__(self, config: Config | None = None) -> None:
         self._config = config or get_config()
         chroma_path = Path(self._config.storage.chroma_path).expanduser()
-        self._client = chromadb.PersistentClient(path=str(chroma_path))
+        self._client = chromadb.PersistentClient(
+            path=str(chroma_path),
+            settings=Settings(anonymized_telemetry=False),
+        )
         # directory.csv lives next to the chroma folder, e.g. ./data/directory.csv
         self._csv_path = chroma_path.parent / "directory.csv"
 
